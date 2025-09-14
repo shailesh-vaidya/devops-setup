@@ -1,0 +1,82 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- namespace.yaml
+- storage.yaml
+- jenkins-deployment.yaml
+- service.yaml
+- jenkins-admin-config.yaml
+- gitea-namespace.yaml
+- gitea-storage.yaml
+- gitea-deployment.yaml
+- gitea-service.yaml
+- mysql-storage.yaml
+- mysql-deployment.yaml
+- mysql-service.yaml
+- mysql-secret.yaml
+- gitea-admin-config.yaml
+- gitea-config.yaml
+- jenkins-security-config.yaml
+- jenkins-gitea-config.yaml
+- jenkins-pipeline-config.yaml
+- gitea-demo-repo-init.yaml
+- gitea-admin-init.yaml
+- jenkins-pipeline-setup.yaml
+- jenkins-init-config.yaml
+- jenkins-credentials-setup.yaml
+- gitea-init-config.yaml
+- jenkins-plugin-list.yaml
+
+images:
+- name: jenkins/jenkins
+  newTag: lts
+- name: gitea/gitea
+  newTag: latest
+- name: mysql
+  newTag: "8.0"
+
+configMapGenerator:
+- name: jenkins-storage-config
+  literals:
+  - hostPathPath=/run/desktop/mnt/host/c/Shailesh/Python/DevOps/data/jenkins
+- name: gitea-storage-config
+  literals:
+  - hostPathPath=/run/desktop/mnt/host/c/Shailesh/Python/DevOps/data/gitea
+- name: mysql-storage-config
+  literals:
+  - hostPathPath=/run/desktop/mnt/host/c/Shailesh/Python/DevOps/data/mysql
+
+replacements:
+- source:
+    kind: ConfigMap
+    name: jenkins-storage-config
+    fieldPath: data.hostPathPath
+  targets:
+  - select:
+      kind: PersistentVolume
+      name: jenkins-pv
+    fieldPaths:
+    - spec.hostPath.path
+- source:
+    kind: ConfigMap
+    name: gitea-storage-config
+    fieldPath: data.hostPathPath
+  targets:
+  - select:
+      kind: PersistentVolume
+      name: gitea-pv
+    fieldPaths:
+    - spec.hostPath.path
+- source:
+    kind: ConfigMap
+    name: mysql-storage-config
+    fieldPath: data.hostPathPath
+  targets:
+  - select:
+      kind: PersistentVolume
+      name: mysql-pv
+    fieldPaths:
+    - spec.hostPath.path
+
+

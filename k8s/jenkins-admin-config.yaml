@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-admin-config
+  namespace: jenkins
+data:
+  admin-password: "admin123"
+  admin-email: "admin@example.com"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jenkins-admin-secret
+  namespace: jenkins
+type: Opaque
+data:
+  admin-password: YWRtaW4xMjM=  # admin123 (base64)

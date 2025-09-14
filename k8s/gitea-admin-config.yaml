@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitea-admin-config
+  namespace: gitea
+data:
+  admin-username: "admin"
+  admin-email: "admin@example.com"
+  admin-password: "admin123"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitea-admin-secret
+  namespace: gitea
+type: Opaque
+data:
+  admin-password: YWRtaW4xMjM=  # admin123 (base64)

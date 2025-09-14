@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-init-config
+  namespace: jenkins
+data:
+  init.groovy: |
+    import jenkins.model.*
+    import hudson.model.*
+    
+    def instance = Jenkins.getInstance()
+    
+    // Wait for Jenkins to be fully initialized
+    Thread.sleep(15000)
+    
+    println "Starting Jenkins initialization..."
+    
+    try {
+        // Install required plugins
+        def pluginManager = instance.getPluginManager()
+        def updateCenter = instance.getUpdateCenter()
+        
+        // Update plugin sites
+        updateCenter.updateAllSites()
+        Thread.sleep(10000) // Wait for update center to be ready
+        
+        def requiredPlugins = [
+            'git',
+            'workflow-job',
+            'workflow-cps',
+            'credentials',
+            'plain-credentials'
+        ]
+        
+        def pluginsInstalled = false
+        requiredPlugins.each { pluginName ->
+            def plugin = pluginManager.getPlugin(pluginName)
+            if (plugin == null) {
+                println "Installing plugin: ${pluginName}"
+                def pluginToInstall = updateCenter.getPlugin(pluginName)
+                if (pluginToInstall != null) {
+                    pluginToInstall.deploy()
+                    pluginsInstalled = true
+                    Thread.sleep(3000) // Wait for plugin to install
+                } else {
+                    println "Plugin ${pluginName} not found in update center"
+                }
+            } else {
+                println "Plugin ${pluginName} is already installed"
+            }
+        }
+        
+        if (pluginsInstalled) {
+            println "Plugins installed, Jenkins will restart automatically"
+            // Don't force restart, let Jenkins handle it naturally
+        } else {
+            println "All required plugins are already installed"
+        }
+        
+        println "Jenkins initialization complete!"
+        
+    } catch (Exception e) {
+        println "Error during Jenkins initialization: ${e.message}"
+        e.printStackTrace()
+    }

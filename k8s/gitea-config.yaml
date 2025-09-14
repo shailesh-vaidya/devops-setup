@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitea-config
+  namespace: gitea
+data:
+  app.ini: |
+    APP_NAME = Gitea
+    RUN_USER = git
+    RUN_MODE = prod
+
+    [database]
+    DB_TYPE = mysql
+    HOST = mysql:3306
+    NAME = gitea
+    USER = gitea
+    PASSWD = giteapassword
+
+    [repository]
+    ROOT = /data/git/repositories
+
+    [server]
+    DOMAIN = localhost
+    HTTP_PORT = 3000
+    ROOT_URL = http://localhost:30080/
+    DISABLE_SSH = false
+    SSH_PORT = 222
+    START_SSH_SERVER = true
+    SSH_LISTEN_PORT = 222
+
+    [service]
+    DISABLE_REGISTRATION = false
+    ENABLE_CAPTCHA = false
+    REQUIRE_SIGNIN_VIEW = false
+
+    [session]
+    COOKIE_SECURE = false
+
+    [log]
+    MODE = console
+    LEVEL = Info
+
+    [security]
+    INSTALL_LOCK = true
+    SECRET_KEY = gitea-secret-key-for-jenkins-demo-2024
+    COOKIE_NAME = gitea_incredible
+
+    [admin]
+    DISABLE_REGULAR_ORG_CREATION = false
+    DEFAULT_EMAIL_NOTIFICATIONS = enabled
+
+    [openid]
+    ENABLE_OPENID_SIGNIN = true
+    ENABLE_OPENID_SIGNUP = true
+
+    [user]
+    ENABLE_EMAIL_NOTIFICATION = true
+    ENABLE_USER_HEATMAP = true
+
+    [cron]
+    ENABLED = true

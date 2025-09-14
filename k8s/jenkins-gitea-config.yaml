@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-gitea-config
+  namespace: jenkins
+data:
+  gitea.groovy: |
+    import jenkins.model.*
+    import com.cloudbees.plugins.credentials.*
+    import com.cloudbees.plugins.credentials.common.*
+    import com.cloudbees.plugins.credentials.domains.*
+    import com.cloudbees.plugins.credentials.impl.*
+    import org.jenkinsci.plugins.plaincredentials.*
+    import org.jenkinsci.plugins.plaincredentials.impl.*
+    import hudson.util.Secret
+    
+    def instance = Jenkins.getInstance()
+    def credentialsStore = instance.getExtensionList('com.cloudbees.plugins.credentials.SystemCredentialsProvider')[0].getStore()
+    def domain = Domain.global()
+    
+    // Create Gitea credentials
+    def giteaCredentials = new UsernamePasswordCredentialsImpl(
+        CredentialsScope.GLOBAL,
+        "gitea-credentials",
+        "Gitea credentials for Jenkins",
+        "admin",
+        "admin123"
+    )
+    
+    credentialsStore.addCredentials(domain, giteaCredentials)
+    
+    // Configure Gitea server
+    def giteaServers = instance.getDescriptor("org.jenkinsci.plugins.gitea.servers.GiteaServers")
+    def serverConfig = new org.jenkinsci.plugins.gitea.servers.GiteaServer(
+        "gitea-server",
+        "http://gitea.gitea.svc.cluster.local:3000",
+        "gitea-credentials"
+    )
+    giteaServers.getServers().add(serverConfig)
+    
+    instance.save()

@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitea-admin-init
+  namespace: gitea
+data:
+  admin-init.sh: |
+    #!/bin/sh
+    set -e
+    
+    echo "Starting Gitea admin setup..."
+    
+    # Wait for Gitea to be ready
+    echo "Waiting for Gitea to be ready..."
+    for i in $(seq 1 30); do
+      if wget -q --spider http://localhost:3000/api/v1/version 2>/dev/null; then
+        echo "Gitea is ready!"
+        break
+      fi
+      echo "Attempt $i: Gitea not ready yet, waiting..."
+      sleep 10
+    done
+    
+    # Wait a bit more for Gitea to fully initialize
+    sleep 30
+    
+    # Create admin user if it doesn't exist
+    echo "Creating admin user..."
+    wget -q --post-data='{"admin":true,"email":"admin@example.com","full_name":"Administrator","login_name":"admin","must_change_password":false,"password":"admin123","send_notify":false,"source_id":0,"username":"admin"}' \
+      --header='Content-Type: application/json' \
+      --http-user=root --http-password=admin123 \
+      -O /dev/null http://localhost:3000/api/v1/admin/users || echo "Admin user might already exist"
+    
+    # Create demo repository
+    echo "Creating demo repository..."
+    wget -q --post-data='{"name":"demo","description":"Demo repository for Jenkins pipeline","private":false,"auto_init":true}' \
+      --header='Content-Type: application/json' \
+      --http-user=admin --http-password=admin123 \
+      -O /dev/null http://localhost:3000/api/v1/user/repos || echo "Demo repository might already exist"
+    
+    # Create demo.sh file
+    echo "Creating demo.sh file..."
+    wget -q --post-data='{"message":"Add demo.sh script","content":"IyEvYmluL2Jhc2gKZWNobyAiRGV2b3BzIHNldHVwIHdpdGggR2l0ZWEgYW5kIEplbmtpbnMgcmVhZHkiCg=="}' \
+      --header='Content-Type: application/json' \
+      --http-user=admin --http-password=admin123 \
+      -O /dev/null http://localhost:3000/api/v1/repos/admin/demo/contents/demo.sh || echo "demo.sh might already exist"
+    
+    echo "Gitea admin setup complete!"
