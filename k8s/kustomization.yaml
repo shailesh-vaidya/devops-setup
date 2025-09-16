@@ -11,17 +11,16 @@ resources:
 - gitea-storage.yaml
 - gitea-deployment.yaml
 - gitea-service.yaml
+- gitea-admin-config.yaml
 - mysql-storage.yaml
 - mysql-deployment.yaml
 - mysql-service.yaml
 - mysql-secret.yaml
-- gitea-admin-config.yaml
 - gitea-config.yaml
 - jenkins-security-config.yaml
 - jenkins-gitea-config.yaml
 - jenkins-pipeline-config.yaml
 - gitea-demo-repo-init.yaml
-- gitea-admin-init.yaml
 - jenkins-pipeline-setup.yaml
 - jenkins-init-config.yaml
 - jenkins-credentials-setup.yaml
@@ -46,6 +45,9 @@ configMapGenerator:
 - name: mysql-storage-config
   literals:
   - hostPathPath=/run/desktop/mnt/host/c/Shailesh/Python/DevOps/data/mysql
+- name: gitea-admin-config
+  literals:
+  - admin-password=admin007
 
 replacements:
 - source:

@@ -67,13 +67,25 @@ spec:
         - name: GITEA__security__SECRET_KEY
           value: "gitea-secret-key-for-jenkins-demo-2024"
         - name: GITEA__admin__USER
-          value: "admin"
+          valueFrom:
+            configMapKeyRef:
+              name: gitea-admin-config
+              key: admin-username
         - name: GITEA__admin__PASSWORD
-          value: "admin123"
+          valueFrom:
+            configMapKeyRef:
+              name: gitea-admin-config
+              key: admin-password
         - name: GITEA__admin__EMAIL
-          value: "admin@example.com"
+          valueFrom:
+            configMapKeyRef:
+              name: gitea-admin-config
+              key: admin-email
         - name: GITEA__admin__MUST_CHANGE_PASSWORD
-          value: "false"
+          valueFrom:  
+            configMapKeyRef: 
+              name: gitea-admin-config
+              key: admin-must-change-password
         volumeMounts:
         - name: gitea-data
           mountPath: /data
@@ -107,6 +119,27 @@ spec:
             memory: "1Gi"
       - name: gitea-init
         image: gitea/gitea:latest
+        env: 
+        - name: GITEA__admin__USER
+          valueFrom:
+            configMapKeyRef:
+              name: gitea-admin-config
+              key: admin-username
+        - name: GITEA__admin__PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: gitea-admin-config
+              key: admin-password
+        - name: GITEA__admin__EMAIL
+          valueFrom:
+            configMapKeyRef:
+              name: gitea-admin-config
+              key: admin-email
+        - name: GITEA__admin__MUST_CHANGE_PASSWORD
+          valueFrom:  
+            configMapKeyRef: 
+              name: gitea-admin-config
+              key: admin-must-change-password
         volumeMounts:
         - name: gitea-data
           mountPath: /data
@@ -139,12 +172,12 @@ spec:
           
           # Check if admin user exists
           echo "Checking if admin user exists..."
-          if curl -f -u "admin:admin123" http://localhost:3000/api/v1/user 2>/dev/null; then
+          if curl -f -u "$GITEA__admin__USER:$GITEA__admin__PASSWORD" http://localhost:3000/api/v1/user 2>/dev/null; then
             echo "Admin user already exists!"
           else
                 # Create admin user if it doesn't exist
                 echo "Creating admin user..."
-                gitea admin user create --username admin --password admin123 --email admin@example.com --admin --must-change-password=false -c /data/gitea/conf/app.ini
+                gitea admin user create --username $GITEA__admin__USER --password $GITEA__admin__PASSWORD --email admin@example.com --admin --must-change-password=false -c /data/gitea/conf/app.ini
             # Don't exit, keep running to allow manual setup
           fi
           
@@ -152,7 +185,7 @@ spec:
           echo "Creating demo repository..."
           curl -X POST "http://localhost:3000/api/v1/user/repos" \
             -H "Content-Type: application/json" \
-            -u "admin:admin123" \
+            -u "$GITEA__admin__USER:$GITEA__admin__PASSWORD" \
             -d '{
               "name": "demo",
               "description": "Demo repository for Jenkins pipeline",
@@ -164,7 +197,7 @@ spec:
           echo "Creating demo.sh file..."
           curl -X POST "http://localhost:3000/api/v1/repos/admin/demo/contents/demo.sh" \
             -H "Content-Type: application/json" \
-            -u "admin:admin123" \
+            -u "$GITEA__admin__USER:$GITEA__admin__PASSWORD" \
             -d '{
               "message": "Add demo.sh script",
               "content": "IyEvYmluL2Jhc2gKZWNobyAiRGV2b3BzIHNldHVwIHdpdGggR2l0ZWEgYW5kIEplbmtpbnMgcmVhZHkiCg=="
@@ -174,7 +207,7 @@ spec:
           echo "Creating Jenkinsfile..."
           curl -X POST "http://localhost:3000/api/v1/repos/admin/demo/contents/Jenkinsfile" \
             -H "Content-Type: application/json" \
-            -u "admin:admin123" \
+            -u "$GITEA__admin__USER:$GITEA__admin__PASSWORD" \
             -d '{
               "message": "Add Jenkinsfile",
               "content": "cGlwZWxpbmUgewogICAgYWdlbnQgYW55CiAgICAKICAgIHN0YWdlcyB7CiAgICAgICAgc3RhZ2UoJ0Nsb25lIFJlcG9zaXRvcnknKSB7CiAgICAgICAgICAgIHN0ZXBzIHsKICAgICAgICAgICAgICAgIGVjaG8gJ0Nsb25pbmcgZGVtbyByZXBvc2l0b3J5IGZyb20gR2l0ZWEuLi4nCiAgICAgICAgICAgICAgICBjaGVja291dCBzY20KICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICAKICAgICAgICBzdGFnZSgnRXhlY3V0ZSBEZW1vIFNjcmlwdCcpIHsKICAgICAgICAgICAgc3RlcHMgewogICAgICAgICAgICAgICAgZWNobyAnRXhlY3V0aW5nIGRlbW8uc2ggc2NyaXB0Li4uJwogICAgICAgICAgICAgICAgc2ggJ2NobW9kICt4IGRlbW8uc2gnCiAgICAgICAgICAgICAgICBzaCAnLi9kZW1vLnNoJwogICAgICAgICAgICB9CiAgICAgICAgfQogICAgfQogICAgCiAgICBwb3N0IHsKICAgICAgICBzdWNjZXNzIHsKICAgICAgICAgICAgZWNobyAnUGlwZWxpbmUgY29tcGxldGVkIHN1Y2Nlc3NmdWxseSEnCiAgICAgICAgfQogICAgICAgIGZhaWx1cmUgewogICAgICAgICAgICBlY2hvICdQaXBlbGluZSBmYWlsZWQhJwogICAgICAgIH0KICAgIH0KfQ=="
