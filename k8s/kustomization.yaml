@@ -36,13 +36,13 @@ images:
 configMapGenerator:
 - name: jenkins-storage-config
   literals:
-  - hostPathPath=/run/desktop/mnt/host/c/Shailesh/Python/DevOps/data/jenkins
+  - hostPathPath=/run/desktop/mnt/host/c/data/jenkins
 - name: gitea-storage-config
   literals:
-  - hostPathPath=/run/desktop/mnt/host/c/Shailesh/Python/DevOps/data/gitea
+  - hostPathPath=/run/desktop/mnt/host/c/data/gitea
 - name: mysql-storage-config
   literals:
-  - hostPathPath=/run/desktop/mnt/host/c/Shailesh/Python/DevOps/data/mysql
+  - hostPathPath=/run/desktop/mnt/host/c/data/mysql
 - name: gitea-admin-config
   namespace: gitea
   literals:
