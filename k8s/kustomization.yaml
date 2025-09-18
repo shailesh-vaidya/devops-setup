@@ -11,7 +11,6 @@ resources:
 - gitea-storage.yaml
 - gitea-deployment.yaml
 - gitea-service.yaml
-- gitea-admin-config.yaml
 - mysql-storage.yaml
 - mysql-deployment.yaml
 - mysql-service.yaml
@@ -46,8 +45,12 @@ configMapGenerator:
   literals:
   - hostPathPath=/run/desktop/mnt/host/c/Shailesh/Python/DevOps/data/mysql
 - name: gitea-admin-config
+  namespace: gitea
   literals:
-  - admin-password=admin007
+    - admin-username=admin
+    - admin-email=admin@example.com
+    - admin-password=admin123
+    - admin-must-change-password=false
 
 replacements:
 - source:
