@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-security-config
+  namespace: jenkins
+data:
+  security.groovy: |
+    import jenkins.model.*
+    import hudson.security.*
+    import hudson.security.csrf.DefaultCrumbIssuer
+    import jenkins.security.s2m.AdminWhitelistRule
+    
+    def instance = Jenkins.getInstance()
+    
+    // Enable security
+    def hudsonRealm = new HudsonPrivateSecurityRealm(false)
+    hudsonRealm.createAccount("admin", System.getenv("JENKINS_ADMIN_PASSWORD"))
+    instance.setSecurityRealm(hudsonRealm)
+    
+    // Set authorization strategy
+    def strategy = new FullControlOnceLoggedInAuthorizationStrategy()
+    strategy.setAllowAnonymousRead(false)
+    instance.setAuthorizationStrategy(strategy)
+    
+    // Enable CSRF protection
+    instance.setCrumbIssuer(new DefaultCrumbIssuer(true))
+    
+    // Disable CLI over remoting (skip if not available)
+    try {
+        def cliDescriptor = instance.getDescriptor("jenkins.CLI")
+        if (cliDescriptor != null) {
+            cliDescriptor.get().setEnabled(false)
+        }
+    } catch (Exception e) {
+        println "CLI descriptor not available, skipping CLI configuration"
+    }
+    
+    // Enable agent to master security subsystem
+    try {
+        instance.getInjector().getInstance(AdminWhitelistRule.class).setMasterKillSwitch(false)
+    } catch (Exception e) {
+        println "AdminWhitelistRule not available, skipping agent security configuration"
+    }
+    
+    instance.save()

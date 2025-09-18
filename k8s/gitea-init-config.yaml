@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitea-init-config
+  namespace: gitea
+data:
+  init-gitea.sh: |
+    #!/bin/bash
+    set -e
+    
+    echo "Starting Gitea initialization..."
+    
+    # Wait for Gitea to be ready
+    echo "Waiting for Gitea to be ready..."
+    for i in $(seq 1 60); do
+      if curl -f http://gitea:3000/api/v1/version 2>/dev/null; then
+        echo "Gitea is ready!"
+        break
+      fi
+      echo "Attempt $i: Gitea not ready yet, waiting..."
+      sleep 10
+    done
+    
+    # Wait a bit more for Gitea to fully initialize
+    sleep 30
+    
+    # Check if admin user exists
+    echo "Checking if admin user exists..."
+    if curl -f -u "admin:admin123" http://gitea:3000/api/v1/user 2>/dev/null; then
+      echo "Admin user already exists!"
+    else
+      echo "Admin user does not exist. Gitea may need manual setup."
+      echo "Please access http://localhost:30080 and complete the setup with:"
+      echo "  - Database Type: MySQL"
+      echo "  - Host: mysql:3306"
+      echo "  - Username: gitea"
+      echo "  - Password: giteapassword"
+      echo "  - Database Name: gitea"
+      echo "  - Admin Username: admin"
+      echo "  - Admin Password: admin123"
+      echo "  - Admin Email: admin@example.com"
+      exit 1
+    fi
+    
+    # Create demo repository
+    echo "Creating demo repository..."
+    curl -X POST "http://gitea:3000/api/v1/user/repos" \
+      -H "Content-Type: application/json" \
+      -u "admin:admin123" \
+      -d '{
+        "name": "demo",
+        "description": "Demo repository for Jenkins pipeline",
+        "private": false,
+        "auto_init": true
+      }' || echo "Demo repository might already exist"
+    
+    # Create demo.sh file
+    echo "Creating demo.sh file..."
+    curl -X POST "http://gitea:3000/api/v1/repos/admin/demo/contents/demo.sh" \
+      -H "Content-Type: application/json" \
+      -u "admin:admin123" \
+      -d '{
+        "message": "Add demo.sh script",
+        "content": "IyEvYmluL2Jhc2gKZWNobyAiRGV2b3BzIHNldHVwIHdpdGggR2l0ZWEgYW5kIEplbmtpbnMgcmVhZHkiCg=="
+      }' || echo "demo.sh might already exist"
+    
+    # Create Jenkinsfile
+    echo "Creating Jenkinsfile..."
+    curl -X POST "http://gitea:3000/api/v1/repos/admin/demo/contents/Jenkinsfile" \
+      -H "Content-Type: application/json" \
+      -u "admin:admin123" \
+      -d '{
+        "message": "Add Jenkinsfile",
+        "content": "cGlwZWxpbmUgewogICAgYWdlbnQgYW55CiAgICAKICAgIHN0YWdlcyB7CiAgICAgICAgc3RhZ2UoJ0Nsb25lIFJlcG9zaXRvcnknKSB7CiAgICAgICAgICAgIHN0ZXBzIHsKICAgICAgICAgICAgICAgIGVjaG8gJ0Nsb25pbmcgZGVtbyByZXBvc2l0b3J5IGZyb20gR2l0ZWEuLi4nCiAgICAgICAgICAgICAgICBjaGVja291dCBzY20KICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICAKICAgICAgICBzdGFnZSgnRXhlY3V0ZSBEZW1vIFNjcmlwdCcpIHsKICAgICAgICAgICAgc3RlcHMgewogICAgICAgICAgICAgICAgZWNobyAnRXhlY3V0aW5nIGRlbW8uc2ggc2NyaXB0Li4uJwogICAgICAgICAgICAgICAgc2ggJ2NobW9kICt4IGRlbW8uc2gnCiAgICAgICAgICAgICAgICBzaCAnLi9kZW1vLnNoJwogICAgICAgICAgICB9CiAgICAgICAgfQogICAgfQogICAgCiAgICBwb3N0IHsKICAgICAgICBzdWNjZXNzIHsKICAgICAgICAgICAgZWNobyAnUGlwZWxpbmUgY29tcGxldGVkIHN1Y2Nlc3NmdWxseSEnCiAgICAgICAgfQogICAgICAgIGZhaWx1cmUgewogICAgICAgICAgICBlY2hvICdQaXBlbGluZSBmYWlsZWQhJwogICAgICAgIH0KICAgIH0KfQ=="
+      }' || echo "Jenkinsfile might already exist"
+    
+    echo "Gitea initialization complete!"

@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: jenkins
+  labels:
+    app: jenkins
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+      - name: fix-permissions
+        image: jenkins/jenkins:lts
+        command: ['sh', '-c']
+        args:
+        - |
+          chown -R 1000:1000 /var/jenkins_home
+          chmod -R 755 /var/jenkins_home
+        volumeMounts:
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+        securityContext:
+          runAsUser: 0
+      - name: install-plugins
+        image: jenkins/jenkins:lts
+        command: ['sh', '-c']
+        args:
+        - |
+          echo "From deployment.yaml - Installing plugins..."
+          curl -fsSL --ssl-no-revoke -o /var/jenkins_home/jenkins-plugin-manager.jar https://github.com/jenkinsci/plugin-installation-manager-tool/releases/latest/download/jenkins-plugin-manager-2.13.2.jar
+          ls -l /var/jenkins_home/jenkins-plugin-manager.jar
+          java -jar /var/jenkins_home/jenkins-plugin-manager.jar --plugin-file /plugins.txt --verbose --war /usr/share/jenkins/jenkins.war --plugin-download-directory /var/jenkins_home/plugins
+        volumeMounts:
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+        - name: jenkins-plugin-list
+          mountPath: /plugins.txt
+          subPath: plugin-list.txt
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+      containers:
+      - name: jenkins
+        image: jenkins/jenkins:lts
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+        env:
+        - name: JENKINS_ADMIN_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: jenkins-admin-config
+              key: admin-password
+        - name: JAVA_OPTS
+          value: "-Djenkins.install.runSetupWizard=false"
+        - name: JENKINS_OPTS
+          value: "--httpPort=8080"
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 50000
+          name: agent
+        volumeMounts:
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+        - name: jenkins-security-config
+          mountPath: /usr/share/jenkins/ref/init.groovy.d/security.groovy
+          subPath: security.groovy
+        - name: jenkins-gitea-config
+          mountPath: /usr/share/jenkins/ref/init.groovy.d/gitea.groovy
+          subPath: gitea.groovy
+        - name: jenkins-init-config
+          mountPath: /usr/share/jenkins/ref/init.groovy.d/init.groovy
+          subPath: init.groovy
+        - name: jenkins-pipeline-setup
+          mountPath: /usr/share/jenkins/ref/init.groovy.d/pipeline-setup.groovy
+          subPath: pipeline-setup.groovy
+        - name: jenkins-credentials-setup
+          mountPath: /usr/share/jenkins/ref/init.groovy.d/credentials-setup.groovy
+          subPath: credentials-setup.groovy
+        readinessProbe:
+          httpGet:
+            path: /login
+            port: 8080
+          initialDelaySeconds: 80
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 12
+        livenessProbe:
+          httpGet:
+            path: /login
+            port: 8080
+          initialDelaySeconds: 80
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 12
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+      volumes:
+      - name: jenkins-home
+        persistentVolumeClaim:
+          claimName: jenkins-pvc
+      - name: jenkins-security-config
+        configMap:
+          name: jenkins-security-config
+      - name: jenkins-gitea-config
+        configMap:
+          name: jenkins-gitea-config
+      - name: jenkins-init-config
+        configMap:
+          name: jenkins-init-config
+      - name: jenkins-pipeline-setup
+        configMap:
+          name: jenkins-pipeline-setup
+      - name: jenkins-credentials-setup
+        configMap:
+          name: jenkins-credentials-setup
+      - name: jenkins-plugin-list
+        configMap:
+          name: jenkins-plugin-list
+
+

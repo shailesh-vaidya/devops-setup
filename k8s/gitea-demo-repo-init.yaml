@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demo-repo-init
+  namespace: gitea
+data:
+  init-repo.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Wait for Gitea to be ready
+    echo "Waiting for Gitea to be ready..."
+    until curl -f http://localhost:3000/api/v1/version; do
+      echo "Gitea not ready yet, waiting..."
+      sleep 10
+    done
+    
+    # Create demo repository
+    echo "Creating demo repository..."
+    curl -X POST "http://localhost:3000/api/v1/user/repos" \
+      -H "Content-Type: application/json" \
+      -u "admin:admin123" \
+      -d '{
+        "name": "demo",
+        "description": "Demo repository for Jenkins pipeline",
+        "private": false,
+        "auto_init": true
+      }'
+    
+    # Create demo.sh file
+    echo "Creating demo.sh file..."
+    curl -X POST "http://localhost:3000/api/v1/repos/admin/demo/contents/demo.sh" \
+      -H "Content-Type: application/json" \
+      -u "admin:admin123" \
+      -d '{
+        "message": "Add demo.sh script",
+        "content": "IyEvYmluL2Jhc2gKZWNobyAiRGV2b3BzIHNldHVwIHdpdGggR2l0ZWEgYW5kIEplbmtpbnMgcmVhZHkiCg=="
+      }'
+    
+    echo "Demo repository setup complete!"

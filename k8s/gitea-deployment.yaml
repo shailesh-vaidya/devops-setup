@@ -1,0 +1,231 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  namespace: gitea
+  labels:
+    app: gitea
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitea
+  template:
+    metadata:
+      labels:
+        app: gitea
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: gitea
+        image: gitea/gitea:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+          name: http
+        - containerPort: 222
+          name: ssh
+        env:
+        - name: USER_UID
+          value: "1000"
+        - name: USER_GID
+          value: "1000"
+        - name: GITEA__database__DB_TYPE
+          value: "mysql"
+        - name: GITEA__database__HOST
+          value: "mysql:3306"
+        - name: GITEA__database__NAME
+          value: "gitea"
+        - name: GITEA__database__USER
+          value: "gitea"
+        - name: GITEA__database__PASSWD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: user-password
+        - name: GITEA__server__DOMAIN
+          value: "localhost"
+        - name: GITEA__server__SSH_DOMAIN
+          value: "localhost"
+        - name: GITEA__server__HTTP_PORT
+          value: "3000"
+        - name: GITEA__server__ROOT_URL
+          value: "http://localhost:30080/"
+        - name: GITEA__server__SSH_PORT
+          value: "222"
+        - name: GITEA__server__DISABLE_SSH
+          value: "false"
+        - name: GITEA__service__DISABLE_REGISTRATION
+          value: "false"
+        - name: GITEA__server__START_SSH_SERVER
+          value: "true"
+        - name: GITEA__server__SSH_LISTEN_PORT
+          value: "222"
+        - name: GITEA__security__INSTALL_LOCK
+          value: "true"
+        - name: GITEA__security__SECRET_KEY
+          value: "gitea-secret-key-for-jenkins-demo-2024"
+        - name: GITEA__admin__USER
+          valueFrom:
+            configMapKeyRef:
+              name: gitea-admin-config
+              key: admin-username
+        - name: GITEA__admin__PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: gitea-admin-config
+              key: admin-password
+        - name: GITEA__admin__EMAIL
+          valueFrom:
+            configMapKeyRef:
+              name: gitea-admin-config
+              key: admin-email
+        - name: GITEA__admin__MUST_CHANGE_PASSWORD
+          valueFrom:  
+            configMapKeyRef: 
+              name: gitea-admin-config
+              key: admin-must-change-password
+        volumeMounts:
+        - name: gitea-data
+          mountPath: /data
+        - name: gitea-config
+          mountPath: /etc/gitea
+        - name: gitea-config-volume
+          mountPath: /etc/gitea/app.ini
+          subPath: app.ini
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 12
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 6
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+      - name: gitea-init
+        image: gitea/gitea:latest
+        env: 
+        - name: GITEA__admin__USER
+          valueFrom:
+            configMapKeyRef:
+              name: gitea-admin-config
+              key: admin-username
+        - name: GITEA__admin__PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: gitea-admin-config
+              key: admin-password
+        - name: GITEA__admin__EMAIL
+          valueFrom:
+            configMapKeyRef:
+              name: gitea-admin-config
+              key: admin-email
+        - name: GITEA__admin__MUST_CHANGE_PASSWORD
+          valueFrom:  
+            configMapKeyRef: 
+              name: gitea-admin-config
+              key: admin-must-change-password
+        volumeMounts:
+        - name: gitea-data
+          mountPath: /data
+        - name: gitea-config
+          mountPath: /etc/gitea
+        - name: gitea-config-volume
+          mountPath: /etc/gitea/app.ini
+          subPath: app.ini
+        securityContext:
+          runAsUser: 1000   # UID of git user in container
+        command: ['sh', '-c']
+        args:
+        - |
+          apk add --no-cache curl
+          echo " Starting Gitea initialization sidecar..."
+          
+          # Wait for Gitea to be ready
+          echo " - Waiting for Gitea to be ready..."
+          for i in $(seq 1 120); do
+            if curl -f http://localhost:3000/api/v1/version 2>/dev/null; then
+              echo " Gitea is ready!"
+              break
+            fi
+            echo "Attempt $i: Gitea not ready yet, waiting..."
+            sleep 10
+          done
+          
+          # Wait a bit more for Gitea to fully initialize
+          sleep 30
+          
+          # Check if admin user exists
+          echo "Checking if admin user exists..."
+          if curl -f -u "$GITEA__admin__USER:$GITEA__admin__PASSWORD" http://localhost:3000/api/v1/user 2>/dev/null; then
+            echo "Admin user already exists!"
+          else
+                # Create admin user if it doesn't exist
+                echo "Creating admin user..."
+                gitea admin user create --username $GITEA__admin__USER --password $GITEA__admin__PASSWORD --email admin@example.com --admin --must-change-password=false -c /data/gitea/conf/app.ini
+            # Don't exit, keep running to allow manual setup
+          fi
+          
+          # Create demo repository
+          echo "Creating demo repository..."
+          curl -X POST "http://localhost:3000/api/v1/user/repos" \
+            -H "Content-Type: application/json" \
+            -u "$GITEA__admin__USER:$GITEA__admin__PASSWORD" \
+            -d '{
+              "name": "demo",
+              "description": "Demo repository for Jenkins pipeline",
+              "private": false,
+              "auto_init": true
+            }' || echo "Demo repository might already exist"
+          
+          # Create demo.sh file
+          echo "Creating demo.sh file..."
+          curl -X POST "http://localhost:3000/api/v1/repos/admin/demo/contents/demo.sh" \
+            -H "Content-Type: application/json" \
+            -u "$GITEA__admin__USER:$GITEA__admin__PASSWORD" \
+            -d '{
+              "message": "Add demo.sh script",
+              "content": "IyEvYmluL2Jhc2gKZWNobyAiRGV2b3BzIHNldHVwIHdpdGggR2l0ZWEgYW5kIEplbmtpbnMgcmVhZHkiCg=="
+            }' || echo "demo.sh might already exist"
+          
+          # Create Jenkinsfile
+          echo "Creating Jenkinsfile..."
+          curl -X POST "http://localhost:3000/api/v1/repos/admin/demo/contents/Jenkinsfile" \
+            -H "Content-Type: application/json" \
+            -u "$GITEA__admin__USER:$GITEA__admin__PASSWORD" \
+            -d '{
+              "message": "Add Jenkinsfile",
+              "content": "cGlwZWxpbmUgewogICAgYWdlbnQgYW55CiAgICAKICAgIHN0YWdlcyB7CiAgICAgICAgc3RhZ2UoJ0Nsb25lIFJlcG9zaXRvcnknKSB7CiAgICAgICAgICAgIHN0ZXBzIHsKICAgICAgICAgICAgICAgIGVjaG8gJ0Nsb25pbmcgZGVtbyByZXBvc2l0b3J5IGZyb20gR2l0ZWEuLi4nCiAgICAgICAgICAgICAgICBjaGVja291dCBzY20KICAgICAgICAgICAgfQogICAgICAgIH0KICAgICAgICAKICAgICAgICBzdGFnZSgnRXhlY3V0ZSBEZW1vIFNjcmlwdCcpIHsKICAgICAgICAgICAgc3RlcHMgewogICAgICAgICAgICAgICAgZWNobyAnRXhlY3V0aW5nIGRlbW8uc2ggc2NyaXB0Li4uJwogICAgICAgICAgICAgICAgc2ggJ2NobW9kICt4IGRlbW8uc2gnCiAgICAgICAgICAgICAgICBzaCAnLi9kZW1vLnNoJwogICAgICAgICAgICB9CiAgICAgICAgfQogICAgfQogICAgCiAgICBwb3N0IHsKICAgICAgICBzdWNjZXNzIHsKICAgICAgICAgICAgZWNobyAnUGlwZWxpbmUgY29tcGxldGVkIHN1Y2Nlc3NmdWxseSEnCiAgICAgICAgfQogICAgICAgIGZhaWx1cmUgewogICAgICAgICAgICBlY2hvICdQaXBlbGluZSBmYWlsZWQhJwogICAgICAgIH0KICAgIH0KfQ=="
+            }' || echo "Jenkinsfile might already exist"
+          
+          echo "Gitea initialization complete! Sidecar will continue running..."
+          
+          # Keep the sidecar running
+          while true; do
+            sleep 3600
+            echo "Gitea init sidecar still running..."
+          done
+      volumes:
+      - name: gitea-data
+        persistentVolumeClaim:
+          claimName: gitea-pvc
+      - name: gitea-config
+        emptyDir: {}
+      - name: gitea-config-volume
+        configMap:
+          name: gitea-config

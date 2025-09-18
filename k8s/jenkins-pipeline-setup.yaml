@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-pipeline-setup
+  namespace: jenkins
+data:
+  pipeline-setup.groovy: |
+    import jenkins.model.*
+    import hudson.model.*
+    import java.io.*
+    
+    def instance = Jenkins.getInstance()
+    
+    // Wait for Jenkins to be fully initialized
+    Thread.sleep(20000)
+    
+    println "Setting up Jenkins pipeline..."
+    
+    try {
+        // Create demo pipeline job configuration
+        def jobName = "demo-pipeline"
+        def existingJob = instance.getItem(jobName)
+        
+        if (existingJob == null) {
+            println "Creating demo pipeline job..."
+            
+            // Create job directory
+            def jobsDir = new File(instance.getRootDir(), "jobs")
+            def jobDir = new File(jobsDir, jobName)
+            jobDir.mkdirs()
+            
+            // Create config.xml for the pipeline job
+            def configXml = '''<?xml version='1.1' encoding='UTF-8'?>
+    <flow-definition plugin="workflow-job@2.41">
+      <description>Demo pipeline that clones from Gitea and runs demo.sh</description>
+      <keepDependencies>false</keepDependencies>
+      <properties/>
+      <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps@2.90">
+        <scm class="hudson.plugins.git.GitSCM" plugin="git@4.8.3">
+          <configVersion>2</configVersion>
+          <userRemoteConfigs>
+            <hudson.plugins.git.UserRemoteConfig>
+              <url>http://gitea.gitea.svc.cluster.local:3000/admin/demo.git</url>
+              <credentialsId>gitea-credentials</credentialsId>
+            </hudson.plugins.git.UserRemoteConfig>
+          </userRemoteConfigs>
+          <branches>
+            <hudson.plugins.git.BranchSpec>
+              <name>*/main</name>
+            </hudson.plugins.git.BranchSpec>
+          </branches>
+          <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+          <submoduleCfg class="list"/>
+          <extensions/>
+        </scm>
+        <scriptPath>Jenkinsfile</scriptPath>
+        <lightweight>true</lightweight>
+      </definition>
+      <triggers/>
+      <disabled>false</disabled>
+    </flow-definition>'''
+            
+            // Write config.xml
+            def configFile = new File(jobDir, "config.xml")
+            configFile.text = configXml
+            
+            // Create workspace directory
+            def workspaceDir = new File(jobDir, "workspace")
+            workspaceDir.mkdirs()
+            
+            // Reload Jenkins configuration
+            instance.reload()
+            
+            println "Demo pipeline job created successfully"
+        } else {
+            println "Demo pipeline job already exists"
+        }
+        
+        println "Pipeline setup complete!"
+        
+    } catch (Exception e) {
+        println "Error during pipeline setup: ${e.message}"
+        e.printStackTrace()
+    }
