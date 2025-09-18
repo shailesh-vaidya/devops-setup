@@ -39,22 +39,6 @@ spec:
           curl -fsSL --ssl-no-revoke -o /var/jenkins_home/jenkins-plugin-manager.jar https://github.com/jenkinsci/plugin-installation-manager-tool/releases/latest/download/jenkins-plugin-manager-2.13.2.jar
           ls -l /var/jenkins_home/jenkins-plugin-manager.jar
           java -jar /var/jenkins_home/jenkins-plugin-manager.jar --plugin-file /plugins.txt --verbose --war /usr/share/jenkins/jenkins.war --plugin-download-directory /var/jenkins_home/plugins
-          # # Create plugins directory if it doesn't exist
-          # mkdir -p /var/jenkins_home/plugins
-          
-          # # Copy default plugins
-          # cp -r /usr/share/jenkins/ref/plugins/* /var/jenkins_home/plugins/ || true
-          
-          # # Create plugin pin files for required plugins
-          # echo "git" > /var/jenkins_home/plugins/git.jpi.pinned || true
-          # echo "workflow-job" > /var/jenkins_home/plugins/workflow-job.jpi.pinned || true
-          # echo "workflow-cps" > /var/jenkins_home/plugins/workflow-cps.jpi.pinned || true
-          # echo "credentials" > /var/jenkins_home/plugins/credentials.jpi.pinned || true
-          # echo "plain-credentials" > /var/jenkins_home/plugins/plain-credentials.jpi.pinned || true
-          
-          # # Set proper permissions
-          # chown -R 1000:1000 /var/jenkins_home/plugins
-          # chmod -R 755 /var/jenkins_home/plugins
         volumeMounts:
         - name: jenkins-home
           mountPath: /var/jenkins_home
@@ -72,6 +56,11 @@ spec:
           runAsUser: 1000
           runAsGroup: 1000
         env:
+        - name: JENKINS_ADMIN_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: jenkins-admin-config
+              key: admin-password
         - name: JAVA_OPTS
           value: "-Djenkins.install.runSetupWizard=false"
         - name: JENKINS_OPTS

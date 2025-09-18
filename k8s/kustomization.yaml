@@ -6,7 +6,6 @@ resources:
 - storage.yaml
 - jenkins-deployment.yaml
 - service.yaml
-- jenkins-admin-config.yaml
 - gitea-namespace.yaml
 - gitea-storage.yaml
 - gitea-deployment.yaml
@@ -51,6 +50,11 @@ configMapGenerator:
     - admin-email=admin@example.com
     - admin-password=admin123
     - admin-must-change-password=false
+- name: jenkins-admin-config
+  namespace: jenkins
+  literals:
+    - admin-password=admin456
+    - admin-email=admin@example.com
 
 replacements:
 - source:
