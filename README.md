@@ -11,10 +11,12 @@ Welcome to the **DevOps Tools Deployment** project! This repository offers autom
 
 ***
 
-## 🔧 Quick Deployment Guide
+## 🔧 Deployment Guide
 
 1. **Prepare your Kubernetes cluster**
-Ensure you have a Kubernetes cluster ready to deploy these tools.
+
+    Ensure you have a Kubernetes cluster ready to deploy these tools.
+
 2. **Clone this repository locally:**
 
 ```bash
@@ -53,15 +55,6 @@ kubectl get pods -A
 
 ***
 
-## 🌟 Features
-
-- Production-ready YAML manifests using Kustomize.
-- Secure, customizable admin passwords.
-- Preloaded demo repositories and pipelines for quick demos.
-- Lightweight, scalable, self-hosted Git and CI/CD services.
-
-***
-
 ## 🤝 Contributing
 
 Contributions are welcome! Whether it’s bug fixes, new features, improved docs, or examples:
@@ -79,11 +72,3 @@ Let’s make DevOps easier together!
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ***
-
-## 🙋 Support \& Help
-
-For issues or questions, please open an issue on the GitHub repository.
-
-***
-
-Enjoy a seamless DevOps experience on Kubernetes — fast, flexible, and fully automated!
